@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     port: int = Field(default=8001)
     
     # CORS
-    allowed_origins: List[str] = Field(default=["http://localhost:3000"])
+    allowed_origins: str = Field(default="http://localhost:3000,http://localhost:8001")
     
     class Config:
         env_file = ".env"
