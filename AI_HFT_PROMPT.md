@@ -93,12 +93,27 @@ Dostarcz **krótkie, ilustracyjne przykłady kodu** dla kluczowych komponentów,
 
 ---
 
-## 💰 ZADANIE 4: ANALIZA KOSZTÓW I ZESPOŁU
+## 🏛️ ZADANIE 4: ZASADY PROJEKTOWE I OCZEKIWANE ZACHOWANIE AI
 
-Stwórz realistyczne zestawienie kosztów i wymagań zespołowych.
+Zamiast koncentrować się na kosztach, skup się na **pryncypiach inżynierskich i metodologii**, które muszą kierować budową tego systemu. Twoim zadaniem jest nie tylko zaprojektowanie architektury, ale również wyjaśnienie **"jak myśleć"** podczas jej tworzenia.
 
-1.  **Koszty w Pierwszym Roku:** Podziel na kategorie (Co-location, Hardware, Dane rynkowe, Pensje, Zgodność z regulacjami, Kapitał operacyjny) i podaj szacunkowe widełki.
-2.  **Wymagany Zespół:** Wymień kluczowe role (np. C++ Low-Latency Developer, FPGA Engineer, Quantitative Analyst, Infrastructure Engineer, Compliance Officer) i opisz ich główne obowiązki.
+W swoim blueprincie, dla każdej kluczowej decyzji architektonicznej, postępuj zgodnie z poniższymi zasadami:
+
+1.  **Priorytet dla Determinizmu i Bezpieczeństwa:**
+    -   Wyjaśnij, w jaki sposób Twoje wybory (np. FPGA, C++ z kernel bypass) zapewniają **deterministyczną, przewidywalną latency**.
+    -   Podkreśl, że **zarządzanie ryzykiem jest nadrzędne wobec szybkości**. Opisz, jak mechanizmy kontroli ryzyka są wbudowane w każdą warstwę systemu (od pre-trade checks na FPGA po zaawansowane limity w C++).
+
+2.  **Wyjaśnianie Kompromisów (Trade-offs):**
+    -   Nie przedstawiaj rozwiązań jako "najlepszych" bez kontekstu. Dla każdej technologii (np. Verilog vs. HLS, DPDK vs. Solarflare Onload) jasno określ **zalety i wady** (np. "Wybraliśmy DPDK dla większej elastyczności kosztem wyższego progu wejścia w porównaniu do Onload...").
+    -   Każda decyzja to kompromis między szybkością, złożonością, elastycznością a bezpieczeństwem. Twoim zadaniem jest to jasno komunikować.
+
+3.  **Myślenie o Testowalności i Modułowości:**
+    -   Opisz, jak zaprojektowałbyś architekturę, aby była **łatwa do testowania na każdym poziomie** – od symulacji RTL dla FPGA, przez unit testy dla logiki w C++, aż po backtesting całych strategii.
+    -   Zaproponuj, jak podzielić system na **niezależne, spójne moduły** z jasno zdefiniowanymi interfejsami, aby ułatwić rozwój i utrzymanie.
+
+4.  **Uwzględnienie Zgodności z Regulacjami (Compliance):**
+    -   Wpleć w swój projekt wymagania wynikające z regulacji rynkowych (np. **SEC Rule 15c3-5** w USA, **MiFID II** w Europie).
+    -   Wyjaśnij, w jaki sposób system zapewnia **niezbędne ścieżki audytowe (audit trails)**, raportowanie i nadzór wymagany przez regulatorów.
 
 ---
 
