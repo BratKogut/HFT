@@ -15,7 +15,6 @@ numpy==1.26.3
 pandas==2.1.4
 
 # Technical Analysis
-TA-Lib==0.4.28
 
 # Database
 motor==3.3.2
