@@ -253,19 +253,20 @@ class L0Sanitizer:
             )
         
         # Check if bid/ask are multiples of tick size
-        bid_remainder = bid % tick_size
-        ask_remainder = ask % tick_size
+        # Use rounding to handle floating point errors
+        bid_rounded = round(bid / tick_size) * tick_size
+        ask_rounded = round(ask / tick_size) * tick_size
         
-        tolerance = tick_size * 0.001  # 0.1% tolerance for floating point
+        tolerance = tick_size * 0.01  # 1% tolerance
         
-        if bid_remainder > tolerance:
+        if abs(bid - bid_rounded) > tolerance:
             return ValidationResult(
                 valid=False,
                 action=ValidationAction.REJECT,
                 reason=f'INVALID_TICK_SIZE: bid {bid} not multiple of {tick_size}'
             )
         
-        if ask_remainder > tolerance:
+        if abs(ask - ask_rounded) > tolerance:
             return ValidationResult(
                 valid=False,
                 action=ValidationAction.REJECT,

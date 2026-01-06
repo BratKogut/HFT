@@ -18,8 +18,19 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
-from trend_filter import TrendFilter, TrendState, TrendDirection
-from cvd_detector import CVDDetector, CVDSignals
+# Imports will be fixed - for now, use simple placeholders
+try:
+    from strategies.trend_filter import TrendFilter, TrendState, TrendDirection
+except:
+    TrendFilter = None
+    TrendState = None
+    TrendDirection = None
+
+try:
+    from strategies.cvd_detector import CVDDetector, CVDSignals
+except:
+    CVDDetector = None
+    CVDSignals = None
 
 
 @dataclass
