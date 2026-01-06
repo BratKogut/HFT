@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Comparison for HFT Trading</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Inter:wght@400;600&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; font-family: 'Inter', sans-serif; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #0F172A;
+            color: #F8FAFC;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #334155;
+        }
+        
+        /* Grid Background */
+        .grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(51, 65, 85, 0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(51, 65, 85, 0.3) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: 0;
+        }
+        
+        /* Decorative Elements */
+        .corner-accent {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #10B981;
+            z-index: 1;
+        }
+        .top-left { top: 40px; left: 40px; border-right: none; border-bottom: none; }
+        .top-right { top: 40px; right: 40px; border-left: none; border-bottom: none; }
+        .bottom-left { bottom: 40px; left: 40px; border-right: none; border-top: none; }
+        .bottom-right { bottom: 40px; right: 40px; border-left: none; border-top: none; }
+        
+        .content-wrapper {
+            z-index: 2;
+            text-align: center;
+            max-width: 900px;
+            padding: 60px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #334155;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.1);
+        }
+        
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 64px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #F8FAFC;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+        }
+        
+        h2 {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 28px;
+            color: #10B981;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+        
+        .subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 20px;
+            color: #94A3B8;
+            line-height: 1.6;
+            border-top: 1px solid #334155;
+            padding-top: 30px;
+            margin-top: 30px;
+        }
+        
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: #1E293B;
+            border-top: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            color: #94A3B8;
+            z-index: 2;
+        }
+        
+        .blinking-cursor::after {
+            content: '_';
+            animation: blink 1s step-end infinite;
+            color: #10B981;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 5px 10px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10B981;
+            color: #10B981;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+            margin: 0 10px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="grid-bg"></div>
+        
+        <div class="corner-accent top-left"></div>
+        <div class="corner-accent top-right"></div>
+        <div class="corner-accent bottom-left"></div>
+        <div class="corner-accent bottom-right"></div>
+        
+        <div class="content-wrapper">
+            <div style="margin-bottom: 30px;">
+                <span class="tag">ANALYSIS</span>
+                <span class="tag">STRATEGY</span>
+                <span class="tag">HFT</span>
+            </div>
+            <h1>Market Comparison<br>for HFT Trading</h1>
+            <h2 class="blinking-cursor">Crypto vs Forex vs Commodities vs Stocks</h2>
+            
+            <div class="subtitle">
+                Comprehensive analysis for indie traders with $5-10K capital<br>
+                <span style="color: #10B981; font-size: 16px; margin-top: 10px; display: block;">>> SYSTEM_READY</span>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div>ID: MARKET_ANALYSIS_V1.0</div>
+            <div>DATE: 2026-01-07</div>
+            <div>STATUS: CONFIDENTIAL</div>
+        </div>
+    </div>
+</body>
+</html>

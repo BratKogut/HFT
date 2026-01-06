@@ -1,0 +1,180 @@
+{
+  "project_info": {
+    "title": "Market Comparison for HFT Trading",
+    "created": 1767710779.043275,
+    "last_updated": 1767710824.3588295,
+    "total_slides": 21
+  },
+  "slides": {
+    "title_slide": "edited",
+    "the_challenge": "edited",
+    "crypto_market": "edit_pending",
+    "forex_market": "edit_pending",
+    "commodities_market": "edit_pending",
+    "stocks_market": "edit_pending",
+    "direct_comparison": "edit_pending",
+    "competition_analysis": "edit_pending",
+    "capital_requirements": "edit_pending",
+    "unique_opportunities": "edit_pending",
+    "volatility_comparison": "edit_pending",
+    "predictability_tradeoff": "edit_pending",
+    "risk_management": "edit_pending",
+    "recommendation": "edit_pending",
+    "diversification_strategy": "edit_pending",
+    "implementation_timeline": "edit_pending",
+    "key_metrics": "edit_pending",
+    "common_mistakes": "edit_pending",
+    "success_factors": "edit_pending",
+    "final_recommendation": "edit_pending",
+    "questions_discussion": "edit_pending"
+  },
+  "outline": [
+    {
+      "id": "title_slide",
+      "title": "Market Comparison for HFT Trading",
+      "summary": "Title slide introducing the comprehensive analysis of Crypto vs Forex vs Commodities vs Stocks for indie traders.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "the_challenge",
+      "title": "The Challenge",
+      "summary": "Overview of the critical decision facing indie traders: choosing the optimal market for rapid profit generation with manageable risk.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "crypto_market",
+      "title": "Crypto Market - Highest Profit Potential",
+      "summary": "Analysis of cryptocurrency trading advantages (20-30% ROI, 24/7 trading) and risks (volatility, unpredictability).",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "forex_market",
+      "title": "Forex Market - Stable and Predictable",
+      "summary": "Analysis of forex trading advantages (stability, liquidity) and challenges (lower volatility, competition).",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "commodities_market",
+      "title": "Commodities Market - Trending Opportunities",
+      "summary": "Analysis of commodities trading advantages (trends, seasonality) and limitations (liquidity, hours).",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "stocks_market",
+      "title": "Stocks Market - Highest Competition",
+      "summary": "Analysis of stock trading challenges (PDT rule, HFT competition) and limited advantages for indie traders.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "direct_comparison",
+      "title": "Direct Comparison - ROI and Risk",
+      "summary": "Side-by-side comparison of expected monthly returns and risk levels across all four markets.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "competition_analysis",
+      "title": "Competition Analysis",
+      "summary": "Breakdown of who you are trading against in each market, highlighting crypto's retail dominance.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "capital_requirements",
+      "title": "Capital Requirements and Barriers",
+      "summary": "Comparison of minimum capital needed and regulatory barriers, showing crypto as the winner for $5-10K traders.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "unique_opportunities",
+      "title": "Unique Opportunities",
+      "summary": "Highlighting market-specific opportunities like liquidation cascades in crypto vs earnings in stocks.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "volatility_comparison",
+      "title": "Volatility Comparison",
+      "summary": "Comparison of average daily price movements, showing crypto's 2-10x higher volatility advantage.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "predictability_tradeoff",
+      "title": "Predictability vs Profitability Trade-off",
+      "summary": "Explaining the fundamental trade-off between market predictability and profit potential.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "risk_management",
+      "title": "Risk Management",
+      "summary": "Analysis of how proper risk management systems can control crypto's higher inherent risk.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "recommendation",
+      "title": "The Recommendation - Start with Crypto",
+      "summary": "Final recommendation to start with crypto due to highest ROI potential and unique opportunities.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "diversification_strategy",
+      "title": "The Diversification Strategy",
+      "summary": "Phased approach to diversification: start with crypto, add forex later, then add gold.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "implementation_timeline",
+      "title": "Implementation Timeline",
+      "summary": "6-week timeline from system hardening to production launch and future diversification.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "key_metrics",
+      "title": "Key Metrics to Track",
+      "summary": "Essential performance metrics for the crypto strategy including win rate, Sharpe ratio, and drawdown.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "common_mistakes",
+      "title": "Common Mistakes to Avoid",
+      "summary": "List of critical mistakes to avoid like chasing profits, over-trading, and ignoring risk management.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "success_factors",
+      "title": "Success Factors",
+      "summary": "Technical, psychological, and financial requirements for success in HFT trading.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "final_recommendation",
+      "title": "Final Recommendation and Next Steps",
+      "summary": "Summary of the final recommendation and immediate next steps for implementation.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    },
+    {
+      "id": "questions_discussion",
+      "title": "Questions & Discussion",
+      "summary": "Closing slide summarizing key takeaways and opening the floor for questions.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    }
+  ]
+}
