@@ -86,3 +86,6 @@ temp/
 # Environment files
 *.env
 *.env.*
+
+# Archive directory (old code)
+archive/
