@@ -68,7 +68,26 @@ class SimpleLiquidationHunter:
         Returns:
             Signal dict or None
         """
-        price = market_data.get('price', (market_data['bid'] + market_data['ask']) / 2)
+        # Input validation
+        if not market_data or not isinstance(market_data, dict):
+            return None
+        
+        # Get price with validation
+        bid = market_data.get('bid', 0)
+        ask = market_data.get('ask', 0)
+        
+        # Validate bid/ask
+        if bid <= 0 or ask <= 0 or not np.isfinite(bid) or not np.isfinite(ask):
+            return None
+        
+        if ask < bid:  # Invalid spread
+            return None
+        
+        price = market_data.get('price', (bid + ask) / 2)
+        
+        # Validate price
+        if price <= 0 or price > 1_000_000 or not np.isfinite(price):
+            return None
         
         # Update last price
         if self.last_price == 0:
@@ -87,7 +106,9 @@ class SimpleLiquidationHunter:
         # Find closest cluster
         closest = min(significant, key=lambda l: abs(l.price - price))
         
-        # Calculate distance
+        # Calculate distance (with zero check)
+        if price == 0 or price < 0.01:
+            return None
         distance_pct = abs(closest.price - price) / price
         
         # Check if close enough to enter

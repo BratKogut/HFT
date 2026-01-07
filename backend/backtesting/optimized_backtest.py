@@ -28,9 +28,11 @@ class OptimizedBacktestEngine:
         
         # Initialize components
         self.strategy = OptimizedLiquidationHunter(
-            signal_threshold=0.7,
-            take_profit_pct=0.02,
-            stop_loss_pct=0.008
+            signal_threshold=0.75,      # Balanced - quality signals
+            take_profit_pct=0.022,      # 2.2% TP - realistic
+            stop_loss_pct=0.007,        # 0.7% SL - not too tight (3.1:1)
+            min_volume_ratio=1.4,       # Balanced volume
+            min_price_extremity=0.83    # Balanced extremity (83%)
         )
         
         self.l0_sanitizer = L0Sanitizer(
@@ -45,7 +47,7 @@ class OptimizedBacktestEngine:
             max_position_loss_pct=5.0,
             max_total_loss_pct=10.0,
             max_drawdown_pct=15.0,
-            max_position_concentration=0.3
+            max_position_concentration=1.0  # Allow 100% for single-symbol backtest
         )
         self.tca = TCAAnalyzer()
         self.wal = WALLogger(log_path='/tmp/wal_backtest/wal.jsonl')
@@ -126,8 +128,11 @@ class OptimizedBacktestEngine:
             self.stats['signals_generated'] += 1
             
             # 4. Risk check
-            if self._can_trade(signal):
+            can_trade = self._can_trade(signal)
+            if can_trade:
                 self._execute_trade(signal, tick)
+            elif idx < 1000:  # Debug first 1000 ticks
+                print(f"Trade blocked at tick {idx}: signal={signal['side']}, confidence={signal['confidence']:.2f}")
     
     def _check_positions(self, tick):
         """Check existing positions for TP/SL"""
@@ -156,19 +161,27 @@ class OptimizedBacktestEngine:
         if 'BTC/USDT' in self.positions:
             return False
         
-        # DRB-Guard check
+        # DRB-Guard check - temporarily add position to check risk
         test_pos = Position(
             symbol='BTC/USDT',
             side=signal['side'],
             entry_price=signal['price'],
             size=self.capital * 0.05,  # 5% position
-            current_price=signal['price'],
-            take_profit_pct=signal['take_profit_pct'],
-            stop_loss_pct=signal['stop_loss_pct']
+            current_price=signal['price']
         )
         
-        risk_check = self.drb_guard.check_risk([test_pos], self.capital)
-        return risk_check['can_trade']
+        # Temporarily add position
+        self.drb_guard.update_position(test_pos)
+        risk_check = self.drb_guard.check_risk()
+        # Remove test position
+        self.drb_guard.remove_position('BTC/USDT')
+        
+        # Debug
+        if self.stats['ticks_processed'] < 1000 and risk_check.action not in ['allow', 'warn']:
+            print(f"  Risk check failed: {risk_check.action} - {risk_check.reason}")
+        
+        # Accept ALLOW and WARN (WARN is just a warning, not a hard block)
+        return risk_check.action in ['allow', 'warn']
     
     def _execute_trade(self, signal, tick):
         """Execute trade"""
@@ -182,32 +195,33 @@ class OptimizedBacktestEngine:
         
         # Simulate fill
         fill_result = self.fee_model.simulate_fill(
-            order_side=OrderSide.BUY if side == 'LONG' else OrderSide.SELL,
+            order_id=f"backtest_{self.stats['trades_executed']}",
+            symbol=symbol,
+            side=OrderSide.BUY if side == 'LONG' else OrderSide.SELL,
             order_type=OrderType.MARKET,
-            quantity=quantity,
-            price=price,
-            order_book={'bid': tick['bid'], 'ask': tick['ask'], 'bid_size': 100, 'ask_size': 100}
+            order_price=price,
+            order_size=quantity,
+            orderbook={'bid': tick.get('bid', price), 'ask': tick.get('ask', price)}
         )
         
         # Deduct fee from capital
-        self.capital -= fill_result['total_fee_usd']
+        self.capital -= fill_result.fees_usd
         
         # Create position
         pos = Position(
             symbol=symbol,
             side=side,
-            entry_price=fill_result['avg_fill_price'],
-            size=position_value,
-            current_price=price,
-            take_profit_pct=signal['take_profit_pct'],
-            stop_loss_pct=signal['stop_loss_pct']
+            entry_price=fill_result.fill_price,
+            size=quantity,  # Size in BTC, not USD
+            current_price=price
         )
+        
+        # Store TP/SL separately
+        pos.take_profit_pct = signal['take_profit_pct']
+        pos.stop_loss_pct = signal['stop_loss_pct']
         
         self.positions[symbol] = pos
         self.stats['trades_executed'] += 1
-        
-        # Track reason
-        self.reason_tracker.add_trade(signal.get('reason', 'unknown'), 0.0)  # Will update on close
     
     def _close_position(self, symbol, price, reason):
         """Close position"""
@@ -218,21 +232,23 @@ class OptimizedBacktestEngine:
         
         # Calculate P&L
         if pos.side == 'LONG':
-            pnl = (price - pos.entry_price) * (pos.size / pos.entry_price)
+            pnl = (price - pos.entry_price) * pos.size
         else:  # SHORT
-            pnl = (pos.entry_price - price) * (pos.size / pos.entry_price)
+            pnl = (pos.entry_price - price) * pos.size
         
         # Simulate fill (exit)
         fill_result = self.fee_model.simulate_fill(
-            order_side=OrderSide.SELL if pos.side == 'LONG' else OrderSide.BUY,
+            order_id=f"backtest_close_{self.stats['trades_closed']}",
+            symbol=symbol,
+            side=OrderSide.SELL if pos.side == 'LONG' else OrderSide.BUY,
             order_type=OrderType.MARKET,
-            quantity=pos.size / pos.entry_price,
-            price=price,
-            order_book={'bid': price * 0.9999, 'ask': price * 1.0001, 'bid_size': 100, 'ask_size': 100}
+            order_price=price,
+            order_size=pos.size,
+            orderbook={'bid': price * 0.9999, 'ask': price * 1.0001}
         )
         
         # Deduct fee
-        pnl -= fill_result['total_fee_usd']
+        pnl -= fill_result.fees_usd
         
         # Update capital
         self.capital += pnl
@@ -244,16 +260,9 @@ class OptimizedBacktestEngine:
             'entry_price': pos.entry_price,
             'exit_price': price,
             'pnl': pnl,
-            'pnl_pct': (pnl / pos.size) * 100,
+            'pnl_pct': (pnl / (pos.size * pos.entry_price)) * 100,
             'reason': reason
         })
-        
-        # Update reason tracker
-        self.reason_tracker.update_trade(
-            reason_code=reason,
-            pnl=pnl,
-            win=(pnl > 0)
-        )
         
         # Remove position
         del self.positions[symbol]
