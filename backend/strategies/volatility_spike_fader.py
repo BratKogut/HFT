@@ -67,6 +67,11 @@ class VolatilitySpikeDetector:
         # Calculate price change over window
         base_price = self.prices[0]
         current_price = self.prices[-1]
+
+        # Protect against division by zero
+        if base_price <= 0:
+            return None
+
         price_change = (current_price - base_price) / base_price
         
         # Check for spike
@@ -287,19 +292,23 @@ class VolatilitySpikeFader:
         entry_price = position['entry_price']
         size = position['size']
         side = position['side']
-        
+
+        # Protect against division by zero
+        if entry_price <= 0:
+            return 0.0
+
         if side == 'buy':
             pnl_pct = (exit_price - entry_price) / entry_price
         else:  # sell
             pnl_pct = (entry_price - exit_price) / entry_price
-        
+
         # Account for fees
         fees = 0.002
         pnl_pct -= fees
-        
+
         position_value = entry_price * size
         pnl = position_value * pnl_pct
-        
+
         return pnl
     
     def update_stats(self, pnl: float):

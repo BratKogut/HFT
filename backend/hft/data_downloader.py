@@ -17,6 +17,22 @@ import os
 import json
 
 
+# Whitelist of supported exchanges for security
+SUPPORTED_EXCHANGES = frozenset({
+    'binance', 'binanceus', 'binancecoinm', 'binanceusdm',
+    'kraken', 'krakenfutures',
+    'coinbase', 'coinbasepro',
+    'ftx', 'ftxus',
+    'kucoin', 'kucoinfutures',
+    'bybit', 'bybitspot',
+    'okx', 'okex',
+    'huobi', 'huobipro',
+    'gate', 'gateio',
+    'bitfinex', 'bitfinex2',
+    'bitstamp', 'gemini',
+})
+
+
 class HistoricalDataDownloader:
     """
     Download historical market data from exchanges
@@ -46,16 +62,27 @@ class HistoricalDataDownloader:
     async def initialize(self):
         """Initialize exchange connection"""
         try:
+            # Validate exchange name against whitelist
+            if self.exchange_name not in SUPPORTED_EXCHANGES:
+                print(f"❌ Unsupported exchange: {self.exchange_name}")
+                print(f"   Supported: {', '.join(sorted(SUPPORTED_EXCHANGES))}")
+                return False
+
+            # Safe getattr with validation
+            if not hasattr(ccxt, self.exchange_name):
+                print(f"❌ Exchange not found in CCXT: {self.exchange_name}")
+                return False
+
             exchange_class = getattr(ccxt, self.exchange_name)
             self.exchange = exchange_class({
                 'enableRateLimit': True,
                 'options': {'defaultType': 'spot'}
             })
-            
+
             await self.exchange.load_markets()
             print(f"✅ Connected to {self.exchange_name.upper()} for data download")
             return True
-            
+
         except Exception as e:
             print(f"❌ Failed to initialize: {e}")
             return False

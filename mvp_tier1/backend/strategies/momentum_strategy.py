@@ -99,15 +99,19 @@ class MomentumStrategy(BaseStrategy):
     def _calculate_momentum(self) -> float:
         """
         Calculate price momentum
-        
+
         Returns:
             Momentum value (percentage change)
         """
         prices = np.array(self.price_history)
-        
+
+        # Protect against division by zero
+        if prices[0] <= 0:
+            return 0.0
+
         # Simple momentum: (current - start) / start
         momentum = (prices[-1] - prices[0]) / prices[0]
-        
+
         return momentum
     
     def _generate_signal(self, symbol: str, price: float, momentum: float) -> Optional[Signal]:
