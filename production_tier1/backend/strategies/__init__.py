@@ -12,6 +12,7 @@ from .base_strategy import (
     StrategyStats,
 )
 from .market_making_strategy import ProductionMarketMakingStrategy
+from .momentum_strategy import ProductionMomentumStrategy
 
 __all__ = [
     "BaseStrategy",
@@ -19,4 +20,5 @@ __all__ = [
     "SignalDirection",
     "StrategyStats",
     "ProductionMarketMakingStrategy",
+    "ProductionMomentumStrategy",
 ]

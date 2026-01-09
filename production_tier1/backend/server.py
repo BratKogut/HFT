@@ -10,6 +10,7 @@ Features:
 - Exchange integration
 - Risk management
 - Strategy execution
+- Full OpenAPI/Swagger documentation
 """
 
 import asyncio
@@ -19,14 +20,32 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from exchange.exchange_adapter import create_exchange_adapter, SimulatedExchangeAdapter
+from exchange.exchange_adapter import create_exchange_adapter, SimulatedExchangeAdapter, CCXTExchangeAdapter
 from risk.risk_manager import ProductionRiskManager, RiskLimits
 from strategies.market_making_strategy import ProductionMarketMakingStrategy
+from strategies.momentum_strategy import ProductionMomentumStrategy
+from live.live_trading_controller import LiveTradingController, TradingConfig, TradingMode
+from api.routes import (
+    PlaceOrderRequest,
+    StrategyParametersRequest,
+    RiskLimitsRequest,
+    StatusResponse,
+    BalanceResponse,
+    TickerResponse,
+    PositionResponse,
+    RiskStatsResponse,
+    StrategyStatsResponse,
+    OrderResponse,
+    MessageResponse,
+    SystemStatsResponse,
+    tags_metadata,
+    openapi_info,
+)
 
 # Setup logging
 logging.basicConfig(
@@ -60,6 +79,7 @@ class SystemState:
     def __init__(self):
         self.exchange = None
         self.risk_manager: Optional[ProductionRiskManager] = None
+        self.live_controller: Optional[LiveTradingController] = None
         self.strategies: List = []
         self.ws_clients: List[WebSocket] = []
         self.is_trading: bool = False
@@ -125,7 +145,29 @@ async def lifespan(app: FastAPI):
             'base_spread': Decimal('0.0003'),
         })
         state.strategies.append(mm_strategy)
-        logger.info("Strategies initialized")
+
+        momentum_strategy = ProductionMomentumStrategy({
+            'signal_cooldown': 60,
+            'momentum_threshold': Decimal('0.02'),
+            'rsi_period': 14,
+        })
+        state.strategies.append(momentum_strategy)
+
+        logger.info(f"Strategies initialized: {[s.name for s in state.strategies]}")
+
+        # Initialize live trading controller
+        trading_config = TradingConfig(
+            symbol=settings.trading_pair,
+            default_order_size=Decimal("0.001"),
+            max_order_size=Decimal("0.1"),
+        )
+        state.live_controller = LiveTradingController(
+            exchange=state.exchange,
+            risk_manager=state.risk_manager,
+            strategies=state.strategies,
+            config=trading_config,
+        )
+        logger.info("Live trading controller initialized")
 
         logger.info("Production HFT System started successfully")
         yield
@@ -136,18 +178,27 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("Shutting down Production HFT System...")
 
+        # Stop live trading if active
+        if state.live_controller and state.live_controller.state.is_active:
+            await state.live_controller.stop(emergency=False)
+
         if state.exchange:
             await state.exchange.disconnect()
 
         logger.info("Shutdown complete")
 
 
-# Create FastAPI app
+# Create FastAPI app with full OpenAPI documentation
 app = FastAPI(
-    title="Production HFT System",
-    description="High-Frequency Trading System - Production Tier",
-    version="1.0.0",
-    lifespan=lifespan
+    title=openapi_info["title"],
+    description=openapi_info["description"],
+    version=openapi_info["version"],
+    contact=openapi_info["contact"],
+    license_info=openapi_info["license_info"],
+    openapi_tags=tags_metadata,
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # CORS middleware - production-safe configuration
@@ -200,9 +251,15 @@ async def broadcast_to_clients(message: Dict):
 
 
 # REST API Endpoints
-@app.get("/")
+
+@app.get(
+    "/",
+    tags=["System"],
+    summary="Root endpoint",
+    description="Returns basic system information and status.",
+)
 async def root():
-    """Root endpoint."""
+    """Root endpoint with system information."""
     return {
         "name": "Production HFT System",
         "version": "1.0.0",
@@ -211,20 +268,32 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    response_model=StatusResponse,
+    tags=["System"],
+    summary="Health check",
+    description="Check system health and connectivity status.",
+)
 async def health():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "trading": state.is_trading,
-        "exchange_connected": state.exchange is not None,
-    }
+    """Health check endpoint with detailed status."""
+    return StatusResponse(
+        status="healthy",
+        timestamp=datetime.utcnow().isoformat() + "Z",
+        trading=state.is_trading,
+        exchange_connected=state.exchange is not None,
+        mode="simulated" if settings.simulated_mode else ("sandbox" if settings.sandbox_mode else "live"),
+    )
 
 
-@app.get("/stats")
+@app.get(
+    "/stats",
+    tags=["System"],
+    summary="System statistics",
+    description="Get comprehensive system statistics including risk and strategy metrics.",
+)
 async def get_stats():
-    """Get system statistics."""
+    """Get complete system statistics."""
     risk_stats = state.risk_manager.get_stats() if state.risk_manager else {}
     strategy_stats = [s.get_stats() for s in state.strategies]
 
@@ -236,32 +305,50 @@ async def get_stats():
     }
 
 
-@app.get("/positions")
+@app.get(
+    "/positions",
+    response_model=List[PositionResponse],
+    tags=["Positions"],
+    summary="Get open positions",
+    description="Retrieve all currently open trading positions.",
+)
 async def get_positions():
-    """Get open positions."""
+    """Get all open positions with P&L data."""
     if not state.risk_manager:
         return []
     return state.risk_manager.get_positions()
 
 
-@app.get("/balance")
+@app.get(
+    "/balance",
+    response_model=BalanceResponse,
+    tags=["System"],
+    summary="Get account balances",
+    description="Retrieve current account balances for all assets.",
+)
 async def get_balance():
-    """Get account balances."""
+    """Get account balances for all assets."""
     if not state.exchange:
         raise HTTPException(status_code=503, detail="Exchange not connected")
 
     if isinstance(state.exchange, SimulatedExchangeAdapter):
-        return {"balances": {k: float(v) for k, v in state.exchange.balances.items()}}
+        return BalanceResponse(balances={k: float(v) for k, v in state.exchange.balances.items()})
 
     # For real exchanges
     usdt = await state.exchange.get_balance("USDT")
     btc = await state.exchange.get_balance("BTC")
-    return {"balances": {"USDT": float(usdt), "BTC": float(btc)}}
+    return BalanceResponse(balances={"USDT": float(usdt), "BTC": float(btc)})
 
 
-@app.get("/ticker/{symbol}")
+@app.get(
+    "/ticker/{symbol}",
+    response_model=TickerResponse,
+    tags=["Market Data"],
+    summary="Get ticker data",
+    description="Get current ticker data for a trading pair including bid, ask, and last prices.",
+)
 async def get_ticker(symbol: str):
-    """Get ticker for symbol."""
+    """Get real-time ticker data for a symbol."""
     if not state.exchange:
         raise HTTPException(status_code=503, detail="Exchange not connected")
 
@@ -269,46 +356,65 @@ async def get_ticker(symbol: str):
     if not ticker:
         raise HTTPException(status_code=404, detail=f"Ticker not found for {symbol}")
 
-    return {
-        "symbol": ticker.symbol,
-        "bid": float(ticker.bid),
-        "ask": float(ticker.ask),
-        "last": float(ticker.last),
-        "timestamp": ticker.timestamp.isoformat(),
-    }
+    return TickerResponse(
+        symbol=ticker.symbol,
+        bid=float(ticker.bid),
+        ask=float(ticker.ask),
+        last=float(ticker.last),
+        spread=float(ticker.ask - ticker.bid),
+        timestamp=ticker.timestamp.isoformat() + "Z",
+    )
 
 
-@app.post("/trading/start")
+@app.post(
+    "/trading/start",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Start trading",
+    description="Activate all strategies and begin automated trading.",
+)
 async def start_trading():
-    """Start trading."""
+    """Start automated trading with all active strategies."""
     if state.is_trading:
-        return {"message": "Trading already started"}
+        return MessageResponse(message="Trading already started")
 
     state.is_trading = True
     for strategy in state.strategies:
         strategy.activate()
 
     logger.info("Trading started")
-    return {"message": "Trading started", "strategies": len(state.strategies)}
+    return MessageResponse(message=f"Trading started with {len(state.strategies)} strategies")
 
 
-@app.post("/trading/stop")
+@app.post(
+    "/trading/stop",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Stop trading",
+    description="Gracefully stop all trading activity.",
+)
 async def stop_trading():
-    """Stop trading."""
+    """Stop trading gracefully, allowing open orders to complete."""
     if not state.is_trading:
-        return {"message": "Trading not started"}
+        return MessageResponse(message="Trading not started")
 
     state.is_trading = False
     for strategy in state.strategies:
         strategy.deactivate()
 
     logger.info("Trading stopped")
-    return {"message": "Trading stopped"}
+    return MessageResponse(message="Trading stopped")
 
 
-@app.post("/trading/halt")
+@app.post(
+    "/trading/halt",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Emergency halt",
+    description="Emergency halt all trading immediately. Use in case of critical issues.",
+)
 async def halt_trading():
-    """Emergency halt all trading."""
+    """Emergency halt - immediately stops all trading activity."""
     if state.risk_manager:
         await state.risk_manager.halt_trading("Manual halt via API")
 
@@ -317,39 +423,256 @@ async def halt_trading():
         strategy.deactivate()
 
     logger.warning("Trading HALTED via API")
-    return {"message": "Trading halted"}
+    return MessageResponse(message="Trading halted - emergency stop activated")
 
 
-@app.post("/trading/resume")
+@app.post(
+    "/trading/resume",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Resume trading",
+    description="Resume trading after an emergency halt.",
+)
 async def resume_trading():
-    """Resume trading after halt."""
+    """Resume trading after emergency halt."""
     if state.risk_manager:
         await state.risk_manager.resume_trading()
 
     logger.info("Trading resumed via API")
-    return {"message": "Trading resumed"}
+    return MessageResponse(message="Trading resumed")
 
 
-@app.post("/strategies/{name}/activate")
+@app.post(
+    "/strategies/{name}/activate",
+    response_model=MessageResponse,
+    tags=["Strategies"],
+    summary="Activate strategy",
+    description="Activate a specific trading strategy by name.",
+)
 async def activate_strategy(name: str):
-    """Activate a strategy by name."""
+    """Activate a trading strategy by its name."""
     for strategy in state.strategies:
         if strategy.name.lower() == name.lower():
             strategy.activate()
-            return {"message": f"Strategy '{name}' activated"}
+            return MessageResponse(message=f"Strategy '{name}' activated")
 
     raise HTTPException(status_code=404, detail=f"Strategy '{name}' not found")
 
 
-@app.post("/strategies/{name}/deactivate")
+@app.post(
+    "/strategies/{name}/deactivate",
+    response_model=MessageResponse,
+    tags=["Strategies"],
+    summary="Deactivate strategy",
+    description="Deactivate a specific trading strategy by name.",
+)
 async def deactivate_strategy(name: str):
-    """Deactivate a strategy by name."""
+    """Deactivate a trading strategy by its name."""
     for strategy in state.strategies:
         if strategy.name.lower() == name.lower():
             strategy.deactivate()
-            return {"message": f"Strategy '{name}' deactivated"}
+            return MessageResponse(message=f"Strategy '{name}' deactivated")
 
     raise HTTPException(status_code=404, detail=f"Strategy '{name}' not found")
+
+
+@app.get(
+    "/strategies",
+    tags=["Strategies"],
+    summary="List strategies",
+    description="Get list of all available trading strategies and their status.",
+)
+async def list_strategies():
+    """List all available strategies with their current status."""
+    return [
+        {
+            "name": s.name,
+            "is_active": s.is_active,
+            "stats": s.get_stats()
+        }
+        for s in state.strategies
+    ]
+
+
+@app.get(
+    "/risk/stats",
+    tags=["Risk"],
+    summary="Get risk statistics",
+    description="Get current risk management statistics including P&L and drawdown.",
+)
+async def get_risk_stats():
+    """Get detailed risk management statistics."""
+    if not state.risk_manager:
+        raise HTTPException(status_code=503, detail="Risk manager not initialized")
+    return state.risk_manager.get_stats()
+
+
+@app.post(
+    "/risk/halt",
+    response_model=MessageResponse,
+    tags=["Risk"],
+    summary="Risk halt",
+    description="Trigger risk-based trading halt.",
+)
+async def risk_halt(reason: str = Query(..., description="Reason for halt")):
+    """Halt trading due to risk concerns."""
+    if state.risk_manager:
+        await state.risk_manager.halt_trading(reason)
+    return MessageResponse(message=f"Risk halt activated: {reason}")
+
+
+# ====================
+# Live Trading Endpoints
+# ====================
+
+@app.get(
+    "/live/status",
+    tags=["Trading"],
+    summary="Get live trading status",
+    description="Get current live trading controller status and statistics.",
+)
+async def get_live_status():
+    """Get live trading controller status."""
+    if not state.live_controller:
+        raise HTTPException(status_code=503, detail="Live controller not initialized")
+    return state.live_controller.get_status()
+
+
+@app.post(
+    "/live/start",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Start live trading",
+    description="Start automated live trading. Mode can be 'paper', 'sandbox', or 'live'.",
+)
+async def start_live_trading(
+    mode: str = Query("paper", description="Trading mode: paper, sandbox, or live")
+):
+    """Start live trading with specified mode."""
+    if not state.live_controller:
+        raise HTTPException(status_code=503, detail="Live controller not initialized")
+
+    mode_map = {
+        "paper": TradingMode.PAPER,
+        "sandbox": TradingMode.SANDBOX,
+        "live": TradingMode.LIVE,
+    }
+
+    if mode.lower() not in mode_map:
+        raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}")
+
+    trading_mode = mode_map[mode.lower()]
+    success = await state.live_controller.start(trading_mode)
+
+    if success:
+        return MessageResponse(message=f"Live trading started in {mode} mode")
+    else:
+        raise HTTPException(status_code=400, detail="Failed to start live trading")
+
+
+@app.post(
+    "/live/stop",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Stop live trading",
+    description="Stop automated live trading gracefully.",
+)
+async def stop_live_trading(
+    emergency: bool = Query(False, description="Emergency stop - close all positions")
+):
+    """Stop live trading."""
+    if not state.live_controller:
+        raise HTTPException(status_code=503, detail="Live controller not initialized")
+
+    await state.live_controller.stop(emergency=emergency)
+    return MessageResponse(
+        message=f"Live trading stopped {'(emergency)' if emergency else '(graceful)'}"
+    )
+
+
+@app.post(
+    "/live/configure",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Configure live trading",
+    description="Update live trading configuration parameters.",
+)
+async def configure_live_trading(
+    symbol: Optional[str] = Query(None, description="Trading symbol"),
+    order_size: Optional[float] = Query(None, gt=0, description="Default order size"),
+    max_order_size: Optional[float] = Query(None, gt=0, description="Maximum order size"),
+    max_daily_trades: Optional[int] = Query(None, gt=0, description="Maximum daily trades"),
+):
+    """Update live trading configuration."""
+    if not state.live_controller:
+        raise HTTPException(status_code=503, detail="Live controller not initialized")
+
+    if state.live_controller.state.is_active:
+        raise HTTPException(status_code=400, detail="Cannot configure while trading is active")
+
+    config = state.live_controller.config
+
+    if symbol:
+        config.symbol = symbol
+    if order_size:
+        config.default_order_size = Decimal(str(order_size))
+    if max_order_size:
+        config.max_order_size = Decimal(str(max_order_size))
+    if max_daily_trades:
+        config.max_daily_trades = max_daily_trades
+
+    return MessageResponse(message="Live trading configuration updated")
+
+
+@app.post(
+    "/live/switch-exchange",
+    response_model=MessageResponse,
+    tags=["Trading"],
+    summary="Switch exchange",
+    description="Switch to a different exchange for live trading.",
+)
+async def switch_exchange(
+    exchange_id: str = Query(..., description="Exchange ID (e.g., binance, kraken)"),
+    sandbox: bool = Query(True, description="Use sandbox/testnet mode"),
+    api_key: Optional[str] = Query(None, description="API key (optional for public endpoints)"),
+    api_secret: Optional[str] = Query(None, description="API secret"),
+):
+    """Switch to a different exchange."""
+    if state.live_controller and state.live_controller.state.is_active:
+        raise HTTPException(status_code=400, detail="Stop trading before switching exchange")
+
+    try:
+        # Disconnect current exchange
+        if state.exchange:
+            await state.exchange.disconnect()
+
+        # Create new exchange adapter
+        new_exchange = create_exchange_adapter(
+            exchange_id=exchange_id,
+            api_key=api_key,
+            api_secret=api_secret,
+            sandbox=sandbox,
+            simulated=False,
+        )
+
+        # Connect and validate
+        if not await new_exchange.connect():
+            raise HTTPException(status_code=503, detail=f"Failed to connect to {exchange_id}")
+
+        state.exchange = new_exchange
+
+        # Update live controller
+        if state.live_controller:
+            state.live_controller.exchange = new_exchange
+
+        return MessageResponse(
+            message=f"Switched to {exchange_id.upper()} (sandbox={sandbox})"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # WebSocket endpoint
