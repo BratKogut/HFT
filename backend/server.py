@@ -117,7 +117,7 @@ async def broadcast(data: dict):
         for client in state.websocket_clients:
             try:
                 await client.send_json(data)
-            except:
+            except Exception:
                 dead_clients.add(client)
         state.websocket_clients -= dead_clients
 
