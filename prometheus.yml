@@ -1,0 +1,41 @@
+# Prometheus Configuration for HFT System
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'hft-monitor'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Rule files for alerts
+rule_files: []
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # HFT Backend metrics
+  - job_name: 'hft-backend'
+    static_configs:
+      - targets: ['hft-backend:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  # Redis metrics (if redis_exporter is added)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: '/metrics'
+
+  # MongoDB metrics (if mongodb_exporter is added)
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongo:27017']
