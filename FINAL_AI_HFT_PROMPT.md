@@ -1,4 +1,4 @@
-# Finalny Prompt dla AI: Budowa Systemu HFT (High-Frequency Trading) - Blueprint 2026
+# Ulepszony Prompt dla AI: Budowa Systemu HFT (High-Frequency Trading) - Blueprint 2026
 
 ## 📜 TWOJA ROLA: MENTOR I GŁÓWNY ARCHITEKT
 
@@ -50,7 +50,7 @@ To jest **najważniejsza część Twojego zadania**. Zamiast tylko opisywać arc
     *   Wyjaśnij, że **zarządzanie ryzykiem jest absolutnym priorytetem**. Pokaż, jak mechanizmy kontroli ryzyka są wbudowane w **każdą warstwę systemu** – od nanosekundowych pre-trade checks na FPGA, przez limity pozycji w C++, aż po analitykę post-trade w Pythonie.
 
 3.  **Projektowanie z Myślą o Testowaniu i Ewolucji:**
-    *   Opisz, jak architektura umożliwia **rygorystyczne testowanie na każdym poziomie**: symulacje RTL dla FPGA, unit testy i testy integracyjne dla C++, oraz backtesting strategii w Pythonie.
+    *   Opisz, jak architektura umożliwia **rigorystyczne testowanie na każdym poziomie**: symulacje RTL dla FPGA, unit testy i testy integracyjne dla C++, oraz backtesting strategii w Pythonie.
     *   Zaproponuj **modułową strukturę z jasno zdefiniowanymi interfejsami (API)** między warstwami (np. między FPGA a C++), wyjaśniając, jak ułatwia to niezależny rozwój, testowanie i przyszłe modernizacje.
 
 4.  **Zgodność z Regulacjami jako Wymóg Architektoniczny:**
