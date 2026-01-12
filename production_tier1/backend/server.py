@@ -22,8 +22,10 @@ from typing import Dict, List, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import os
 
 from exchange.exchange_adapter import create_exchange_adapter, SimulatedExchangeAdapter, CCXTExchangeAdapter
 from risk.risk_manager import ProductionRiskManager, RiskLimits
@@ -46,6 +48,7 @@ from api.routes import (
     tags_metadata,
     openapi_info,
 )
+from visualization.perspective_manager import PerspectiveManager, PERSPECTIVE_AVAILABLE
 
 # Setup logging
 logging.basicConfig(
@@ -85,6 +88,8 @@ class SystemState:
         self.is_trading: bool = False
         self._lock = asyncio.Lock()
         self._ws_lock = asyncio.Lock()
+        # Perspective real-time visualization
+        self.perspective_manager: Optional[PerspectiveManager] = None
 
     async def add_ws_client(self, client: WebSocket):
         async with self._ws_lock:
@@ -169,6 +174,19 @@ async def lifespan(app: FastAPI):
         )
         logger.info("Live trading controller initialized")
 
+        # Initialize Perspective visualization
+        if PERSPECTIVE_AVAILABLE:
+            state.perspective_manager = PerspectiveManager()
+            if await state.perspective_manager.initialize():
+                logger.info("Perspective visualization initialized")
+                # Start background streaming task
+                asyncio.create_task(stream_data_to_perspective())
+                logger.info("Perspective streaming started")
+            else:
+                logger.warning("Perspective initialization failed")
+        else:
+            logger.info("Perspective not available - visualization disabled")
+
         logger.info("Production HFT System started successfully")
         yield
 
@@ -216,6 +234,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+# Mount static files for dashboard
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 # Request/Response models
@@ -673,6 +696,140 @@ async def switch_exchange(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ====================
+# Visualization Endpoints
+# ====================
+
+@app.get(
+    "/dashboard",
+    tags=["Visualization"],
+    summary="Trading Dashboard",
+    description="Interactive real-time trading dashboard with Perspective viewers.",
+)
+async def get_dashboard():
+    """Serve the Perspective dashboard."""
+    dashboard_path = os.path.join(static_dir, "dashboard.html")
+    if os.path.exists(dashboard_path):
+        return FileResponse(dashboard_path)
+    raise HTTPException(status_code=404, detail="Dashboard not found")
+
+
+@app.get(
+    "/perspective/tables",
+    tags=["Visualization"],
+    summary="List Perspective tables",
+    description="Get list of available Perspective tables for visualization.",
+)
+async def get_perspective_tables():
+    """List available Perspective tables."""
+    if not state.perspective_manager or not state.perspective_manager.enabled:
+        raise HTTPException(status_code=503, detail="Perspective not available")
+    return {"tables": state.perspective_manager.get_table_names()}
+
+
+@app.websocket("/ws/perspective")
+async def perspective_websocket(websocket: WebSocket):
+    """WebSocket endpoint for Perspective real-time updates."""
+    if not state.perspective_manager or not state.perspective_manager.enabled:
+        await websocket.close(code=1003, reason="Perspective not available")
+        return
+
+    handler = state.perspective_manager.get_starlette_handler()
+    if handler:
+        await handler(websocket)
+    else:
+        await websocket.close(code=1003, reason="Perspective handler not available")
+
+
+@app.post(
+    "/perspective/update-trades",
+    tags=["Visualization"],
+    summary="Update trades table",
+    description="Push trade data to Perspective visualization.",
+)
+async def update_perspective_trades(trades: List[Dict]):
+    """Push trade data to Perspective trades table."""
+    if not state.perspective_manager or not state.perspective_manager.enabled:
+        raise HTTPException(status_code=503, detail="Perspective not available")
+    state.perspective_manager.update_trades(trades)
+    return {"status": "updated", "count": len(trades)}
+
+
+@app.post(
+    "/perspective/update-positions",
+    tags=["Visualization"],
+    summary="Update positions table",
+    description="Push position data to Perspective visualization.",
+)
+async def update_perspective_positions(positions: List[Dict]):
+    """Push position data to Perspective positions table."""
+    if not state.perspective_manager or not state.perspective_manager.enabled:
+        raise HTTPException(status_code=503, detail="Perspective not available")
+    state.perspective_manager.update_positions(positions)
+    return {"status": "updated", "count": len(positions)}
+
+
+@app.post(
+    "/perspective/update-signals",
+    tags=["Visualization"],
+    summary="Update signals table",
+    description="Push signal data to Perspective visualization.",
+)
+async def update_perspective_signals(signals: List[Dict]):
+    """Push signal data to Perspective signals table."""
+    if not state.perspective_manager or not state.perspective_manager.enabled:
+        raise HTTPException(status_code=503, detail="Perspective not available")
+    state.perspective_manager.update_signals(signals)
+    return {"status": "updated", "count": len(signals)}
+
+
+@app.post(
+    "/perspective/update-risk",
+    tags=["Visualization"],
+    summary="Update risk metrics",
+    description="Push risk metrics to Perspective visualization.",
+)
+async def update_perspective_risk(metrics: Dict):
+    """Push risk metrics to Perspective risk table."""
+    if not state.perspective_manager or not state.perspective_manager.enabled:
+        raise HTTPException(status_code=503, detail="Perspective not available")
+    state.perspective_manager.update_risk_metrics(metrics)
+    return {"status": "updated"}
+
+
+async def stream_data_to_perspective():
+    """Background task to stream data to Perspective tables."""
+    while True:
+        try:
+            if state.perspective_manager and state.perspective_manager.enabled:
+                # Update risk metrics from risk manager
+                if state.risk_manager:
+                    risk_stats = state.risk_manager.get_stats()
+                    state.perspective_manager.update_risk_metrics(risk_stats)
+
+                # Update market data from exchange
+                if state.exchange and state.is_trading:
+                    try:
+                        ticker = await state.exchange.get_ticker(settings.trading_pair)
+                        if ticker:
+                            state.perspective_manager.update_market_data({
+                                "symbol": ticker.symbol,
+                                "last": float(ticker.last),
+                                "bid": float(ticker.bid),
+                                "ask": float(ticker.ask),
+                                "timestamp": ticker.timestamp.isoformat(),
+                            })
+                    except Exception as e:
+                        logger.debug(f"Failed to update market data: {e}")
+
+            await asyncio.sleep(1)  # Update every second
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error in Perspective streaming: {e}")
+            await asyncio.sleep(5)
 
 
 # WebSocket endpoint
