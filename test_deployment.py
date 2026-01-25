@@ -244,16 +244,12 @@ def test_backtest():
         
         # Create backtest
         print("Initializing backtest...")
-        backtest = OptimizedBacktest(
-            data=df,
-            initial_capital=10000.0,
-            symbol="BTC/USDT"
-        )
+        backtest = OptimizedBacktest(initial_capital=10000.0)
         
         # Run backtest
         print("Running backtest...")
         start_time = time.time()
-        results = backtest.run()
+        results = backtest.run_backtest(data_file)
         duration = time.time() - start_time
         
         # Calculate speed
