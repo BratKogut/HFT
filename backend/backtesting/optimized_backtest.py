@@ -21,7 +21,7 @@ from core.event_bus import EventBus, Event, EventType
 from core.reason_codes import ReasonCodeTracker
 import time
 
-class OptimizedBacktestEngine:
+class OptimizedBacktest:
     def __init__(self, initial_capital=10000):
         self.initial_capital = initial_capital
         self.capital = initial_capital
